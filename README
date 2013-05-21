@@ -31,8 +31,8 @@
  # sudo pip install python-crontab
  # sudo apt-get install sqlite3
  # sudo apt-get install git
- # mkdir ismg
  # git clone https://github.com/gavazzireader/ismg.git
+ # cd ismg
  # python gavazzireader.py --configure
  # python gavazzireader.py
   - verify data is fetched (check data files in data_dir)
