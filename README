@@ -1,0 +1,41 @@
+                Quick and dirty ISMG145 reader 
+    for Carlo Gavazzi's poorly documented photovoltaic inverters
+--------------------------------------------------------------------
+
+ You have found the first and only low cost DIY-solution to get data 
+ from your Carlo Gavazzi ISMG145 solar power inverters.
+ The solution was coined without any help from Carlo Gavazzi whatsoever
+ in spite of my reqeust for it.
+ 
+ It is kinda up to you to select the components to put together. I can 
+ tell you what I did. I got:
+  * a raspberry-pi, casing, power supply and sd-card
+    (any python-capable computer will probably do)
+  * a USB-to-RS232-adapter cable 
+    http://www.av-cables.dk/seriel-converter/2-x-seriel-til-usb-adapter.html 
+    (but any will do)
+  * a rs-232 to rj-45 adapter 
+    https://www.elfaelektronik.dk/elfa3~dk_da/elfa/init.do?item=25-115-91
+  * two rj45-cables
+  * an internet connection to the raspberry pi
+  * a power plug to feed the raspberry
+	
+ If you need help, feel free to contact me - it will be well below the obscene
+ DKK 4899 Gavazzi charges for their meter-reading solution (their reason for
+ not supporting an open solution, I presume).
+ 
+ # Install raspbian
+ # sudo apt-get install python-pip
+ # sudo pip install --upgrade pyserial
+ # sudo pip install python-dateutil
+ # sudo pip install python-crontab
+ # sudo apt-get install sqlite3
+ # sudo apt-get install git
+ # mkdir ismg
+ # git clone https://github.com/gavazzireader/ismg.git
+ # python gavazzireader.py --configure
+ # python gavazzireader.py
+  - verify data is fetched (check data files in data_dir)
+ # python gavazzireader.py --cron
+ 
+ 
