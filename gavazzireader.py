@@ -132,11 +132,6 @@ class DatabaseHandler():
     self.cursor.execute(updatesql, ids_to_update)
     self.conn.commit()
 
-#todo:
-# 1: cron setup
-# 2: --configure handle pvoutput
-# 3: auto-pvoutput
-
 def is_any_inverter_read(inverters):
   for inverter in inverters:
     if inverter.last_read_timestamp != None:
@@ -214,10 +209,61 @@ def conf_coalesce(config, section, parameter, default_value):
   return default_value
   
 if __name__ == "__main__":
-  # 1 read config file
-  # 2 get data from inverters
-  # 3 store data in db
-  # 4 deliver un-delivered readings
+  if len(sys.argv) > 1 and sys.argv[1] == '--configure':
+    try:
+      conf = Gavazzireader_Configuration.read(CONFIGFILE)
+    except:
+      conf = Gavazzireader_Configuration('', [], '15', None)
+    newconfig = ConfigParser.RawConfigParser()
+    newconfig.add_section('System')
+    defval = conf.data_dir 
+    if defval == '':
+      defval = '/home/pi/ismg_data/'
+    dp = raw_input('Enter data directory path [%s]: ' % defval)
+    if dp == '':
+      dp = defval
+    newconfig.set('System', 'data_directory', dp)
+  
+    rc = conf.read_cycle
+    if rc == '':
+      rc = '15'
+    read_cycle = raw_input('Enter minutes between readings (5/10/15/30/60) [%s]: ' % rc)
+    if read_cycle == '' or read_cycle not in ('5', '10', '15', '30', '60'): 
+      read_cycle = rc
+    newconfig.set('System', 'read_cycle', read_cycle)
+    
+    ak = conf.pvoutput_apikey
+    apikey = raw_input('Enter API key for pvoutput.org [%s] (\'-\' to remove): ' % ak)
+    if apikey != '-':
+      if apikey == '':
+        apikey = ak
+      newconfig.set('System', 'pvoutput_apikey', apikey)
+
+    inverters_alive = ismg.ISMGFinder.scan()
+    for conf_inv in inverters_alive:
+      #try:
+        conf_inv.perform_read() #need to get serial for configuration
+        inv_serial = conf_inv.serial_number()
+        config_section_name = 'Inverter_%s' % inv_serial
+        newconfig.add_section(config_section_name)
+        oldsysid = conf.get_pvoutput_systemid(inv_serial)
+        if apikey != '':
+          pvsysid = raw_input('pvoutput.org system_id for inverter: Serial=%s, Slave_id=%s, Port=%s [%s] (\'-\' to remove): ' % (conf_inv.serial_number(), conf_inv.serial_port, conf_inv.slave_number, oldsysid))
+          if pvsysid != '-':
+            if pvsysid == '':
+              pvsysid = oldsysid
+            if pvsysid != None:
+              newconfig.set(config_section_name, 'pvoutput_systemid', pvsysid)
+        newconfig.set(config_section_name, 'serial_port', conf_inv.serial_port)
+        newconfig.set(config_section_name, 'slave_number', conf_inv.slave_number)
+      #except:
+      #  print sys.exc_info()[0]
+      #  continue
+    if raw_input('Really write configuration file with %d inverters? (\'y\' to write): ' % len(inverters_alive)) == 'y':
+      with open(CONFIGFILE, 'wb') as configfile:                                   
+        newconfig.write(configfile)
+    raise SystemExit()
+
 
   
   if not os.path.exists(CONFIGFILE):
@@ -242,58 +288,7 @@ if __name__ == "__main__":
     raise SystemExit()
   
   if len(sys.argv) > 1:
-    if sys.argv[1] == '--configure':
-      newconfig = ConfigParser.RawConfigParser()
-      newconfig.add_section('System')
-      defval = conf.data_dir 
-      if defval == '':
-        defval = '/home/pi/ismg_data/'
-      dp = raw_input('Enter data directory path [%s]: ' % defval)
-      if dp == '':
-        dp = defval
-      newconfig.set('System', 'data_directory', dp)
-    
-      rc = conf.read_cycle
-      if rc == '':
-        rc = '15'
-      read_cycle = raw_input('Enter minutes between readings (5/10/15/30/60) [%s]: ' % rc)
-      if read_cycle == '' or read_cycle not in ('5', '10', '15', '30', '60'): 
-        read_cycle = rc
-      newconfig.set('System', 'read_cycle', read_cycle)
-      
-      ak = conf.pvoutput_apikey
-      apikey = raw_input('Enter API key for pvoutput.org [%s] (\'-\' to remove): ' % ak)
-      if apikey != '-':
-        if apikey == '':
-          apikey = ak
-        newconfig.set('System', 'pvoutput_apikey', apikey)
-
-      inverters_alive = ismg.ISMGFinder.scan()
-      for conf_inv in inverters_alive:
-        #try:
-          conf_inv.perform_read() #need to get serial for configuration
-          inv_serial = conf_inv.serial_number()
-          config_section_name = 'Inverter_%s' % inv_serial
-          newconfig.add_section(config_section_name)
-          oldsysid = conf.get_pvoutput_systemid(inv_serial)
-          if apikey != '':
-            pvsysid = raw_input('pvoutput.org system_id for inverter: Serial=%s, Slave_id=%s, Port=%s [%s] (\'-\' to remove): ' % (conf_inv.serial_number(), conf_inv.serial_port, conf_inv.slave_number, oldsysid))
-            if pvsysid != '-':
-              if pvsysid == '':
-                pvsysid = oldsysid
-              if pvsysid != None:
-                newconfig.set(config_section_name, 'pvoutput_systemid', pvsysid)
-          newconfig.set(config_section_name, 'serial_port', conf_inv.serial_port)
-          newconfig.set(config_section_name, 'slave_number', conf_inv.slave_number)
-        #except:
-        #  print sys.exc_info()[0]
-        #  continue
-      if raw_input('Really write configuration file with %d inverters? (\'y\' to write): ' % len(inverters_alive)) == 'y':
-        with open(CONFIGFILE, 'wb') as configfile:                                   
-          newconfig.write(configfile)
-      raise SystemExit()
-      
-    elif sys.argv[1] == '--cron':
+    if sys.argv[1] == '--cron':
       job_comment = 'gavazzireader_identifier_comment__do_not_delete'
       if conf.read_cycle == None or conf.read_cycle not in ('5', '10', '15', '30'):
         raise SystemExit('No read cycle defined (%s). Configure with --configure' % conf.read_cycle)
