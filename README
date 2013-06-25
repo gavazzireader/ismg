@@ -29,7 +29,8 @@
  # sudo pip install --upgrade pyserial
  # sudo pip install python-dateutil
  # sudo pip install python-crontab
- # sudo apt-get install sqlite3
+ # sudo apt-get install apache2 libapache2-mod-php5 mysql-server php5-mysql python-mysqldb (you will be asked to create a mysql-superuser password)
+ # mysql -u root -p -e "create database ismgdata; grant all privileges on ismgdata.* TO gavazzireader@localhost IDENTIFIED BY 'ismg';" (enter mysql-superuser password)
  # sudo apt-get install git
  # git clone https://github.com/gavazzireader/ismg.git
  # cd ismg
@@ -37,5 +38,3 @@
  # python gavazzireader.py
   - verify data is fetched (check data files in data_dir)
  # python gavazzireader.py --cron
- 
- 
