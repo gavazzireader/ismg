@@ -13,6 +13,7 @@ import urllib2
 import ismg
 from crontab import CronTab
 from serial.tools import list_ports
+import MySQLdb
 
 CONFIGFILE = '/home/pi/.ismgcfg'                   
 PVOUTPUT_BATCHSIZE = 30 #30=free, 90=donator
@@ -58,7 +59,7 @@ class Gavazzireader_Configuration():
     return None
   
 
-class DatabaseHandler():
+class SQLiteHandler():
   def __init__(self, datadir):
     self.conn = sqlite3.connect(datadir + '/ismgdata.db')
     self.cursor = self.conn.cursor()
@@ -132,6 +133,97 @@ class DatabaseHandler():
     self.cursor.execute(updatesql, ids_to_update)
     self.conn.commit()
 
+  def pvlog_fetch_data_to_transmit(self):
+    sql = 'select d.timestamp, d.serial_number, d.total_output_energy, day_start_energy, d.total_output_energy - day_start_energy as todays_production from ismgdata d join (select serial_number, substr(timestamp, 1, 10) as day, min(total_output_energy) as day_start_energy from ismgdata group by serial_number, substr(timestamp, 1, 10)) o on substr(d.timestamp, 1, 10) = o.day and d.serial_number = o.serial_number;'
+    
+    sql ='select max(output_power) from ismgdata where serial_number=\'%s\';select max(input_power_a) from ismgdata where serial_number=\'%s\';select max(input_power_c) from ismgdata where serial_number=\'%s\';'
+
+class MySQLHandler():
+  def __init__(self):
+    self.conn = MySQLdb.connect('localhost', 'gavazzireader', 'ismg', 'ismgdata')
+    self.cursor = self.conn.cursor()
+    self.create_schema();
+
+  def create_schema(self):  
+    if self.cursor.execute("SHOW TABLES LIKE 'ismgdata'") == 0:
+      self.cursor.execute('CREATE TABLE ismgdata ('
+          'rowid BIGINT AUTO_INCREMENT PRIMARY KEY, '
+          'timestamp CHAR(19), '
+          'state VARCHAR(25), '
+          'error_info VARCHAR(23), '
+          'volt_a FLOAT, '
+          'volt_b FLOAT, '
+          'volt_c FLOAT, '
+          'input_power_a INTEGER, '
+          'input_power_b INTEGER, '
+          'input_power_c INTEGER, '
+          'output_voltage FLOAT, '
+          'output_power INTEGER, '
+          'output_current FLOAT, '
+          'output_frequency FLOAT, '
+          'total_output_energy FLOAT, '
+          'total_input_energy_a FLOAT, '
+          'total_input_energy_b FLOAT, '
+          'total_input_energy_c FLOAT, '
+          'todays_output_minutes INTEGER, '
+          'leakage_current INTEGER, '
+          'heatsink_temp FLOAT, '
+          'ac_impedance FLOAT, '
+          'insulation_resistance FLOAT, '
+          'total_operation_time VARCHAR(12), '
+          'relay_on_count INTEGER, '
+          'tripping_voltage FLOAT, '
+          'tripping_frequcency FLOAT, '
+          'serial_number char(11), ' 
+          'version_info varchar(17), '
+          'pvoutput_attempts INTEGER default 0, '
+          'pvoutput_status INTEGER default 0);') #0=untransmitted, 1=failed_temporarily, 2=delivered_with_success, 3=failed_permanently
+      self.cursor.execute('CREATE INDEX ismg_timestamp ON ismgdata(timestamp ASC);')
+      self.cursor.execute('CREATE INDEX ismg_serial_number ON ismgdata(serial_number ASC);')
+      self.cursor.execute('CREATE INDEX ismg_pvoutput_status ON ismgdata(pvoutput_status ASC);')
+      self.conn.commit()
+
+  def store_reads(self, ismgdataregisterarray):
+    self.cursor.executemany('INSERT INTO ismgdata(timestamp, state, error_info, volt_a, volt_b, volt_c, input_power_a, input_power_b, '
+               'input_power_c, output_voltage, output_power,  output_current,  output_frequency,  total_output_energy,  '
+               'total_input_energy_a,  total_input_energy_b,  total_input_energy_c,  todays_output_minutes,  leakage_current,  '
+               'heatsink_temp,  ac_impedance,  insulation_resistance,  total_operation_time,  relay_on_count,  tripping_voltage, '
+               'tripping_frequcency, serial_number, version_info) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', 
+                ismgdataregisterarray)
+    self.conn.commit()
+    
+  def pvoutput_fetch_data_to_transmit(self):
+    sql = ('SELECT reading.serial_number, reading.rowid, reading.timestamp, reading.total_output_energy - daystart.daystart AS todays_energy, reading.output_power, reading.pvoutput_attempts from ismgdata reading JOIN (SELECT serial_number, SUBSTR(timestamp, 1, 10) AS day, MIN(total_output_energy) AS daystart FROM ismgdata GROUP BY serial_number, SUBSTR(timestamp, 1, 10)) daystart ON SUBSTR(reading.timestamp, 1, 10) = daystart.day AND reading.serial_number = daystart.serial_number WHERE reading.total_output_energy - daystart.daystart > 0 AND pvoutput_status < 2 AND state = \'Output\' ORDER BY serial_number, timestamp LIMIT %d;') % PVOUTPUT_BATCHSIZE
+    rowids = []
+    readings=[]
+    handling_serial = None
+    self.cursor.execute(sql)
+    for record in self.cursor.fetchall():
+      if handling_serial == None:
+        handling_serial = record[0]
+      if record[0] != handling_serial:
+        break;
+      rowids.append(record[1])
+      utctime = time.strptime(record[2], '%Y-%m-%dZ%H:%M:%S')
+      localtime = time.localtime(calendar.timegm(utctime))
+      datepart = time.strftime("%Y%m%d", localtime)
+      timepart = time.strftime("%H:%M", localtime)
+      readings.append('%s,%s,%d,%d' % ( datepart, timepart, 1000 * record[3], record[4]))
+    return (handling_serial, rowids, readings)
+
+  def pvoutput_update_status(self, updated_status_code, ids_to_update):
+    if len(ids_to_update) == 0:
+      return
+    updatesql = (len(ids_to_update)-1)*',%s'
+    updatesql = 'UPDATE ismgdata SET pvoutput_status=%d, pvoutput_attempts=pvoutput_attempts+1 WHERE rowid IN (%s);' % (updated_status_code, '%s' + updatesql)
+    self.cursor.execute(updatesql, ids_to_update)
+    self.conn.commit()
+
+  def pvlog_fetch_data_to_transmit(self):
+    sql = 'select d.timestamp, d.serial_number, d.total_output_energy, day_start_energy, d.total_output_energy - day_start_energy as todays_production from ismgdata d join (select serial_number, substr(timestamp, 1, 10) as day, min(total_output_energy) as day_start_energy from ismgdata group by serial_number, substr(timestamp, 1, 10)) o on substr(d.timestamp, 1, 10) = o.day and d.serial_number = o.serial_number;'
+    
+    sql ='select max(output_power) from ismgdata where serial_number=\'%s\';select max(input_power_a) from ismgdata where serial_number=\'%s\';select max(input_power_c) from ismgdata where serial_number=\'%s\';'
+
 def is_any_inverter_read(inverters):
   for inverter in inverters:
     if inverter.last_read_timestamp != None:
@@ -160,7 +252,7 @@ def send_batch_to_pvoutput():
     httpopener = urllib2.build_opener(urllib2.HTTPHandler(debuglevel=2))
     httpurl = 'http://pvoutput.org/service/r2/addbatchstatus.jsp'
     #print 'sending ', rowids
-    req = urllib2.Request(url=httpurl, data='data=%s&c1=1'% ';'.join(readings), headers=httpheaders)
+    req = urllib2.Request(url=httpurl, data='data=%s'% ';'.join(readings), headers=httpheaders) ##&c1=1 removed - daily production sent instead of total counter
    
     accepted_ids=[]
     rejected_ids=[]
@@ -271,7 +363,7 @@ if __name__ == "__main__":
   conf = Gavazzireader_Configuration.read(CONFIGFILE)
   if not os.path.exists(conf.data_dir):
     os.mkdir(conf.data_directory)
-  db = DatabaseHandler(conf.data_dir)
+  db = MySQLHandler()
 
   #for inve in conf.inverters:
   #  print "found %s on %s "% (inve.slave_number, inve.serial_port)
