@@ -38,3 +38,6 @@
  # python gavazzireader.py
   - verify data is fetched (check data files in data_dir)
  # python gavazzireader.py --cron
+
+ 
+ For a local view of the data collected, you can make the files in the www subfolder available somewhere accessible via apache

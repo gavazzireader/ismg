@@ -1,0 +1,54 @@
+ul.ytd {
+    list-style-type: none;
+    font-size: 250%;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+} 
+ul.ytd li {
+    display: inline-block;
+    border: 5px solid #999;
+    border-radius: 10px;
+    color: black;
+    background: #CCC;
+    padding: 2px;
+
+}
+ul.inverter {
+    font-size: 50%;
+    padding: 0;
+    margin: 0;
+}
+ul.inverter li {
+    border: none;
+    list-style-type: none;
+    padding: 0px 2px;
+}
+ul.inverter li.invertername {
+	font-style: italic;
+	color: #669;
+}
+ul.total {
+    padding: 0;
+    margin: 0;
+}
+ul.total li {
+    border-radius: 0;
+    border-top-width: 1px;
+    border-top-color: black;
+    border-left-style: none;
+    border-right-style: none;
+    border-bottom-color: black;
+    border-bottom-style: double;
+    padding: 2px 20px;
+    font-size: 90%;
+}
+
+div {
+  //border: 1px solid red;
+}
+#dashboard_graphs  div{
+    //border: 2px solid blue;
+    float: left;
+    text-align: center;
+}
