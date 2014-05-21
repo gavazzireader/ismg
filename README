@@ -34,6 +34,6 @@
  # python gavazzireader.py
   - verify data is fetched (check data files in data_dir)
  # python gavazzireader.py --cron
-
+ # sudo ln -w /home/pi/ismg/www /var/www
  
- For a local view of the data collected, you can make the files in the www subfolder available somewhere accessible via apache
+Point your browser to the Raspberry Pi's address to see data collected locally.
