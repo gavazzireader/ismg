@@ -362,7 +362,7 @@ if __name__ == "__main__":
     raise SystemExit('Configuration does not exist. Run "python %s --configure" to generate' % sys.argv[0])
   conf = Gavazzireader_Configuration.read(CONFIGFILE)
   if not os.path.exists(conf.data_dir):
-    os.mkdir(conf.data_directory)
+    os.mkdir(conf.data_dir)
   db = MySQLHandler()
 
   #for inve in conf.inverters:
@@ -386,10 +386,9 @@ if __name__ == "__main__":
         raise SystemExit('No read cycle defined (%s). Configure with --configure' % conf.read_cycle)
       ct = CronTab()
       existingjob = ct.find_comment(job_comment)
-      if len(existingjob) > 0:
-        for ej in existingjob:
-          ct.remove(ej)
-      newjob = ct.new(command='%s %s'%(sys.executable, sys.argv[0]),comment=job_comment)
+      for ej in existingjob:
+        ct.remove(ej)
+      newjob = ct.new(command='%s %s'%(sys.executable, os.path.abspath(sys.argv[0])),comment=job_comment)
       newjob.minute.every(conf.read_cycle)
       ct.write()
       raise SystemExit()

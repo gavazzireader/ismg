@@ -5,21 +5,17 @@
  You have found the first and only low cost DIY-solution to get data 
  from your Carlo Gavazzi ISMG145 solar power inverters.
  The solution was coined without any help from Carlo Gavazzi whatsoever
- in spite of my reqeust for it.
+ in spite of my request for it.
  
  It is kinda up to you to select the components to put together. I can 
  tell you what I did. I got:
   * a raspberry-pi, casing, power supply and sd-card
     (any python-capable computer will probably do)
-  * a USB-to-RS232-adapter cable 
-    http://www.av-cables.dk/seriel-converter/2-x-seriel-til-usb-adapter.html 
-    (but any will do)
-  * a rs-232 to rj-45 adapter 
-    https://www.elfaelektronik.dk/elfa3~dk_da/elfa/init.do?item=25-115-91
-  * two rj45-cables
+  * a five-dollar USB-to-RS485-adapter: http://www.dx.com/p/usb-to-rs485-adapter-black-green-296620
+  * rj45-cable and plugs
   * an internet connection to the raspberry pi
   * a power plug to feed the raspberry
-	
+
  If you need help, feel free to contact me - it will be well below the obscene
  DKK 4899 Gavazzi charges for their meter-reading solution (their reason for
  not supporting an open solution, I presume).
